@@ -15,17 +15,77 @@ Think of it as asking the same question to different ways of thinking and gettin
 - Stores past questions and answers as memory (optional module)
 
 ---
+## 🆕 New in v2 (Major updates)
 
-## 🏗️ How it works (high level)
+This version significantly extends the original v1 app by adding user awareness, persistent memory, and semantic retrieval.
 
-1. User enters an OpenAI API key in the sidebar  
-2. User selects one or more personalities  
-3. User asks a question  
-4. Each selected personality agent generates a response  
-5. A neutral agent synthesizes the responses  
-6. Final answer is shown, along with individual perspectives  
+### 🔐 User authentication (MongoDB)
 
-All agents run using CrewAI with a sequential workflow.
+- Users can sign up and log in with a username and password
+- Credentials are stored securely in MongoDB
+- Passwords are hashed (no plaintext storage)
+- Login state is managed using Streamlit session state
+- Logout clears the session and resets the app
+
+Each user is treated as an isolated identity across sessions.
+
+---
+
+### 🧠 Per user semantic memory (FAISS)
+
+- The app now maintains **separate memory per user**
+- Memory is stored as short, meaningful notes instead of raw conversations
+- Each note is embedded into a vector space using sentence transformers
+- FAISS is used for fast semantic similarity search
+- Memory is persisted locally on disk and survives app restarts
+
+This allows the system to recall relevant past knowledge based on meaning, not keywords.
+
+---
+
+### 📌 How memory works
+
+1. The final synthesized answer is broken into short informational notes  
+2. Each note is converted into a vector embedding  
+3. Notes are stored in a FAISS index under the logged in user  
+4. When a new question is asked:
+   - Similar past notes are retrieved using vector similarity
+   - Relevant memory is injected into the neutral agent’s synthesis step  
+
+Memory is user specific and never shared across accounts.
+
+---
+
+### 🧱 Architectural improvements
+
+- Clear separation of concerns:
+  - `app.py` handles UI and session state
+  - `auth.py` handles authentication logic
+  - `db.py` handles MongoDB connections
+  - `memory.py` handles FAISS based vector memory
+  - `main.py` remains pure orchestration logic
+- No Streamlit session state is accessed outside `app.py`
+- No API keys or credentials are written to disk
+
+---
+
+### ⚠️ Notes and limitations
+
+- Designed for local or small scale deployments
+- Memory storage is file based (FAISS + pickle)
+- No OAuth or external identity provider yet
+- No parallel agent execution (still sequential)
+
+---
+
+### 🔮 Planned improvements
+
+- Memory injection per agent (not just neutral)
+- Memory decay and recency weighting
+- Memory deduplication
+- Memory inspection and management UI
+- Optional vector DB backends (Chroma / Qdrant)
+- OAuth based login (Google / GitHub)
 
 ---
 
