@@ -3,12 +3,45 @@
 
 import streamlit as st
 import os
+from auth import authenticate_user, create_user
+
 st.set_page_config(page_title="Personalities")
 
 st.markdown(
-    "<h1 style='text-align:center'>A Council of <span style='color:red'>Personalities</span></h1>",
+    "<h1 style='text-align:center'>A Council of <span style='color:red; font-style: italic;'>Personalities</span></h1>",
     unsafe_allow_html=True
 )
+
+def login_ui():
+    st.markdown("### Login")
+
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        login = st.button("Login")
+    with col2:
+        signup = st.button("Sign Up")
+    
+    if login:
+        if authenticate_user(username, password):
+            st.session_state["username"] = username
+            st.success("Logged in successfully!")
+            st.experimental_rerun()
+        else:
+            st.error("Invalid username or password.")
+
+    if signup:
+        if create_user(username, password):
+            st.success("Account created successfully. Please log in.")
+        else:
+            st.error("User already exists. Please choose a different username.")
+
+if "username" not in st.session_state:
+    login_ui()
+    st.stop()
+
 
 st.markdown(
     "<p style='text-align:center'><em>Ask different personalities a question</em></p>",
@@ -16,17 +49,24 @@ st.markdown(
 )
 
 openai_api_key = st.sidebar.text_input("OpenAI API Key", type="password")
-st.write("Please enter your OpenAI API key to proceed.")
+st.sidebar.caption("Please enter your OpenAI API key to proceed.")
 
-# if not openai_api_key or not openai_api_key.startswith("sk-"):
-#     st.warning("Please enter your OpenAI API key.")
-#     st.stop()
+st.sidebar.markdown(f"**User:** {st.session_state['username']}")
+
+if st.sidebar.button("Logout"):
+    st.session_state.clear()
+    st.experimental_rerun()
+
+
+if not openai_api_key or not openai_api_key.startswith("sk-"):
+    st.sidebar.warning("Please enter a valid OpenAI API key.")
+    st.stop()
 
 st.session_state["OPENAI_API_KEY"] = openai_api_key
 os.environ["OPENAI_API_KEY"] = openai_api_key
 
 from main import run_council
-from memory import save_interaction
+from memory import save_notes, make_notes
 
 st.header("Choose personalities", divider="grey")
 
@@ -143,7 +183,8 @@ if ask_clicked:
     if question.strip():
         with st.spinner("Thinking..."):
             try:
-                result = run_council(question, selected_agents)
+                username = st.session_state["username"]
+                result = run_council(username, question, selected_agents)
             except Exception as e:
                 st.error("Something went wrong.")
                 st.exception(e)
@@ -157,4 +198,7 @@ if ask_clicked:
             with st.expander(key.upper()):
                 st.write(result[key])
 
-    save_interaction(question, result["final"])
+    username = st.session_state["username"]
+    notes = make_notes(result["final"])
+
+    save_notes(username, notes, source=question)

@@ -1,9 +1,7 @@
 # from dotenv import load_dotenv
 # load_dotenv()
 import os
-
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-
+# OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 from crewai import Task, Crew
 from agents import (
@@ -11,7 +9,7 @@ from agents import (
     entj, intj, enfp, infp, isfj, esfj,
     esfp, istp, isfp, estp, neutral
 )
-
+from memory import retrieve_memory
 
 AGENT_DESCRIPTIONS = {
     "intp": (intp, "Analyze logically and question assumptions"),
@@ -33,11 +31,12 @@ AGENT_DESCRIPTIONS = {
 }
 
 
-def run_council(question: str, selected_agents : dict):
-
+def run_council(username: str, question: str, selected_agents: dict):
     tasks = []
     outputs = {}
     agents_used = []
+
+    past_notes = retrieve_memory(username, question)
 
     for key, value in selected_agents.items():
         if value:
@@ -55,9 +54,12 @@ def run_council(question: str, selected_agents : dict):
         return {"final": "Please select at least one personality."}
 
     if len(tasks) > 1:
+        memory_context = "\n".join(f"- {n}" for n in past_notes)
         synth_task = Task(
             description=(
                 "Combine all selected perspectives into one clear, concise answer. "
+                "Use the following past knowledge if relevant:\n"
+                f"{memory_context}\n\n"
                 "Resolve conflicts and provide 2–3 actionable steps."
             ),
             agent=neutral,
